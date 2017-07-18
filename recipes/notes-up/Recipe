@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# notes-up.sh
+# Author: Max Mitschke
+# Date: 2017-07-16
+
+# Application Information
+APP_NAME="Notes-up"
+APP_ARCH="x86_64"
+APP_VERSION="1.4.4"
+
+# Download the latest release and extract it
+LATEST_DOWNLOAD_URL="https://github.com/Philip-Scott/Notes-up/archive/${APP_VERSION}.tar.gz"
+wget -O "${APP_NAME}-${APP_VERSION}.tar.gz" "${LATEST_DOWNLOAD_URL}"
+tar -xvf "${APP_NAME}-${APP_VERSION}.tar.gz"
+
+# Install required dependencies
+BUILD_DEPS=( "cmake" "valac" "make" "squashfs-tools" "libgranite-dev" "libgee-0.8-dev" "libgtksourceview-3.0-dev" "libgtk-3-dev" "libwebkit2gtk-4.0-dev" "libsqlite3-dev" )
+
+sudo apt install -y "${BUILD_DEPS[@]}"
+
+# Build
+cd "${APP_NAME}-${APP_VERSION}"
+cmake -DCMAKE_INSTALL_PREFIX=usr/ -Dnoele=1 .
+make install
+cd ..
+
+# Create AppImage
+APPIMAGE="appimagetool-x86_64.AppImage"
+wget -O "${APPIMAGE}" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+chmod a+x "${APPIMAGE}"
+
+mkdir -p "${APP_NAME}-${APP_ARCH}.AppDir"
+cp -r "${APP_NAME}-${APP_VERSION}/usr/" "${APP_NAME}-${APP_ARCH}.AppDir/"
+cd "${APP_NAME}-${APP_ARCH}.AppDir"
+
+ln -s usr/share/icons/hicolor/scalable/apps/com.github.philip-scott.notes-up.svg com.github.philip-scott.notes-up.svg
+ln -s usr/share/applications/com.github.philip-scott.notes-up.desktop Notes-up.desktop
+echo '#!/bin/bash' > AppRun
+echo 'GSETTINGS_SCHEMA_DIR=$(dirname $0)/usr/share/glib-2.0/schemas/ $(dirname $0)/usr/bin/notes-up' >> AppRun
+chmod a+x AppRun
+
+cd ..
+$(pwd)/${APPIMAGE} "${APP_NAME}-${APP_ARCH}.AppDir"
+
+# Cleanup
+sudo apt remove -y "${BUILD_DEPS[@]}"
+rm -rf ${APP_NAME}-${APP_VERSION}/ *.AppDir *.tar.gz ${APPIMAGE}
